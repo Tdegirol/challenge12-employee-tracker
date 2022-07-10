@@ -46,6 +46,8 @@ const begin = () => {
             addRole();
         } else if (data.start === 'Add an employee'){
             addEmployee();
+        } else if (data.start === 'Update an employee role'){
+            updateEmployee();
         }
     })    
 };
@@ -207,7 +209,7 @@ addEmployee = async () => {
             //Get roles array so user can choice from list of available roles
             con.connect(function(err) {
                 if (err) throw err;
-                con.query("SELECT * FROM roles", function (err, roles) {
+                con.query(`SELECT * FROM roles`, function (err, roles) {
                     if (err) throw err;
                     const rolesArr = roles.map(({id, title}) => {return title});
                     inquirer.prompt([
@@ -274,4 +276,50 @@ addEmployee = async () => {
         })
 }
 
+updateEmployee = async () => {
+    const sql = `SELECT * FROM employees`;
+    const employeeList = await con.promise().query(sql);
+    const employees = employeeList[0].map(({id, first_name, last_name}) => ({name: first_name + ' ' + last_name, value: id}));
+    inquirer.prompt([
+        {
+            type: 'list',
+            name:'name',
+            message: 'Which employee would you like to be updated?',
+            choices:employees
+        }
+    ])
+    .then(data => {
+        const params = [data.name];
+        con.connect(function(err) {
+            if (err) throw err;
+            const sql = `SELECT * FROM roles`
+            con.query(sql, function (err, roles) {
+                if (err) throw err;
+                const rolesArr = roles.map(({id, title}) => {return title});
+                inquirer.prompt([
+                    {
+                        type:'list',
+                        name:'empRole',
+                        message: 'Which role would you like to update this employee to?',
+                        choices: rolesArr
+                    }
+                ])
+                .then(answers => {
+                    const empRole = roles.filter(roles => roles.title === answers.empRole)
+                    console.log(empRole);
+                    params.unshift(empRole[0].id)
+                    console.log(params);
+                    const sqlRole = `UPDATE employees SET role_id = ?
+                        WHERE id = ?`;
+                    con.query(sqlRole, params, (err, result) => {
+                        if (err) throw err;
+                        console.log(data.name + ' has been updated to ' + answers.empRole)
+                        viewEmployees();
+                    })                
+                })
+             });
+          });
+
+    })
+}
 
